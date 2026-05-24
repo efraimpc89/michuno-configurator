@@ -5,6 +5,7 @@ import CanvasViewer from './components/CanvasViewer'
 import Sidebar from './components/Sidebar'
 import ViewSelector from './components/ViewSelector'
 import DesignOverlay from './components/DesignOverlay'
+import SceneOverlay from './components/SceneOverlay'
 
 function LoadingScreen() {
   const { progress, active } = useProgress()
@@ -44,6 +45,7 @@ export default function App() {
           <CanvasViewer />
           <DesignOverlay />
           <ViewSelector />
+          <SceneOverlay />
         </div>
         <Sidebar />
         <LoadingScreen />
