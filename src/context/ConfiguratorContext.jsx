@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useRef } from 'react'
 
 export const COLORS = [
-  { name: 'Blanco Textil',  hex: '#EAEAEA' },
   { name: 'Negro Reactivo', hex: '#181818' },
   { name: 'Gris Jaspe',     hex: '#9DA1A2' },
   { name: 'Gris Carbón',    hex: '#4A4D4E' },
@@ -33,6 +32,11 @@ export function ConfiguratorProvider({ children }) {
   const [size, setSize]             = useState('M')
   const [modelId, setModelId]       = useState('playera1')
   const [roughness, setRoughness]   = useState(1.00)
+  const [activeView, setActiveView]   = useState('2d')    // '3d' | '2d'
+  const [view2DSide, setView2DSide]   = useState('frente') // which side is visible in 2D overlay
+  const [showHandles, setShowHandles] = useState(false)    // bounding box corners visible
+  const frontZRef    = useRef(0.22)   // written by CanvasViewer, read by DesignOverlay
+  const cameraAnimRef = useRef(null)  // { z: number, framesLeft: number } — triggers smooth camera move
 
   // Multi-design system
   const [designs, setDesigns]                   = useState([])
@@ -45,9 +49,13 @@ export function ConfiguratorProvider({ children }) {
   const addDesign = useCallback((file) => {
     const url = URL.createObjectURL(file)
     const id  = `d-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`
-    const design = { id, url, x: 0, y: 0.25, scale: 0.30, side: 'frente' }
-    setDesigns(prev => [...prev, design])
-    setActiveDesignId(id)
+    const img = new Image()
+    img.onload = () => {
+      const aspectRatio = (img.naturalWidth / img.naturalHeight) || 1
+      setDesigns(prev => [...prev, { id, url, x: 0, y: 0.25, scale: 0.30, aspectRatio, side: 'frente' }])
+      setActiveDesignId(id)
+    }
+    img.src = url
   }, [])
 
   const removeDesign = useCallback((id) => {
@@ -67,7 +75,11 @@ export function ConfiguratorProvider({ children }) {
   const setActiveX     = useCallback((x)     => updateDesign(activeDesignId, { x }),     [activeDesignId, updateDesign])
   const setActiveY     = useCallback((y)     => updateDesign(activeDesignId, { y }),     [activeDesignId, updateDesign])
   const setActiveScale = useCallback((scale) => updateDesign(activeDesignId, { scale }), [activeDesignId, updateDesign])
-  const setActiveSide  = useCallback((side)  => updateDesign(activeDesignId, { side }),  [activeDesignId, updateDesign])
+  const setActiveSide  = useCallback((side) => {
+    updateDesign(activeDesignId, { side })
+    setView2DSide(side)
+    cameraAnimRef.current = { z: side === 'espalda' ? -2.5 : 2.5, framesLeft: 45 }
+  }, [activeDesignId, updateDesign])
 
   return (
     <ConfiguratorContext.Provider value={{
@@ -81,6 +93,10 @@ export function ConfiguratorProvider({ children }) {
       activeDesign,
       addDesign, removeDesign, updateDesign,
       setActiveX, setActiveY, setActiveScale, setActiveSide,
+      activeView, setActiveView,
+      view2DSide,
+      showHandles, setShowHandles,
+      frontZRef, cameraAnimRef,
       COLORS, SIZES, MODELS,
     }}>
       {children}

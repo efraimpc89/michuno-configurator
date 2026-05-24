@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import { useConfigurator } from '../context/ConfiguratorContext'
 
 function SliderRow({ label, value, min, max, step, onChange }) {
@@ -29,33 +30,60 @@ export default function Sidebar() {
     designs, activeDesignId, setActiveDesignId, activeDesign,
     addDesign, removeDesign,
     setActiveX, setActiveY, setActiveScale, setActiveSide,
+    activeView, showHandles, setShowHandles,
     COLORS, SIZES, MODELS,
   } = useConfigurator()
 
+  const [collapsed, setCollapsed] = useState(false)
+  const dragRef = useRef({ startY: 0, moved: false })
+
   const selectedColorName = COLORS.find(c => c.hex === color)?.name ?? ''
+  const cmW = activeDesign ? Math.round(activeDesign.scale * 50) : 0
+  const cmH = activeDesign ? Math.round(activeDesign.scale / (activeDesign.aspectRatio || 1) * 50) : 0
 
   const handleFiles = (e) => {
     Array.from(e.target.files || []).forEach(addDesign)
     e.target.value = ''
   }
 
-  return (
-    /*
-     * Mobile: fixed bottom sheet (max 45vh, rounded top)
-     * Desktop (md+): fixed right panel, full height
-     */
-    <aside className="
-      fixed bottom-0 left-0 w-full
-      md:bottom-auto md:right-0 md:top-0 md:left-auto md:w-80 md:h-full
-      bg-white shadow-2xl z-10 flex flex-col
-      rounded-t-2xl md:rounded-none
-      max-h-[48vh] md:max-h-full
-      overflow-y-auto
-    ">
+  const onHandlePointerDown = (e) => {
+    dragRef.current = { startY: e.clientY, moved: false }
+    const handleMove = (evt) => {
+      const delta = evt.clientY - dragRef.current.startY
+      if (Math.abs(delta) > 5) dragRef.current.moved = true
+      if (delta > 30)  setCollapsed(true)
+      if (delta < -30) setCollapsed(false)
+    }
+    const handleUp = (evt) => {
+      document.removeEventListener('pointermove', handleMove)
+      document.removeEventListener('pointerup',   handleUp)
+      if (!dragRef.current.moved) setCollapsed(c => !c)
+    }
+    document.addEventListener('pointermove', handleMove)
+    document.addEventListener('pointerup',   handleUp)
+  }
 
-      {/* Drag handle — only on mobile */}
-      <div className="flex justify-center pt-2.5 pb-1 md:hidden">
-        <div className="w-10 h-1 rounded-full bg-gray-200" />
+  return (
+    <aside
+      onPointerDown={(e) => e.stopPropagation()}
+      className={[
+        'fixed bottom-0 left-0 w-full',
+        'md:bottom-auto md:right-0 md:top-0 md:left-auto md:w-80 md:h-full',
+        'bg-white shadow-2xl z-10 flex flex-col',
+        'rounded-t-2xl md:rounded-none',
+        'overflow-hidden md:overflow-y-auto',
+        'transition-[max-height] duration-300 ease-in-out',
+        collapsed ? 'max-h-[56px]' : 'max-h-[72vh]',
+        'md:max-h-full',
+      ].join(' ')}
+    >
+
+      {/* Drag handle — mobile only, functional */}
+      <div
+        className="flex justify-center pt-2.5 pb-1 md:hidden flex-shrink-0 cursor-grab active:cursor-grabbing"
+        onPointerDown={onHandlePointerDown}
+      >
+        <div className="w-10 h-1 rounded-full bg-gray-300" />
       </div>
 
       {/* Header */}
@@ -63,7 +91,7 @@ export default function Sidebar() {
         <img src="/favicon.png" alt="Michuno" className="h-9 w-9 object-contain flex-shrink-0" />
         <div>
           <h1 className="text-base md:text-lg font-bold text-gray-900 tracking-tight">Michuno&#174;</h1>
-          <p className="text-xs text-gray-400 mt-0.5">Configurador 3D</p>
+          <p className="text-xs text-gray-400 mt-0.5">Mock-up Playeras</p>
         </div>
       </div>
 
@@ -92,7 +120,6 @@ export default function Sidebar() {
         <section>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Diseños / Logos</h2>
 
-          {/* Upload button */}
           <label className="flex items-center gap-2 cursor-pointer bg-gray-50 hover:bg-gray-100 border border-dashed border-gray-300 hover:border-gray-400 rounded-xl px-4 py-2.5 transition-colors text-sm text-gray-600 mb-2">
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -102,7 +129,6 @@ export default function Sidebar() {
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleFiles} />
           </label>
 
-          {/* Design thumbnail list */}
           {designs.length > 0 && (
             <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto pr-0.5">
               {designs.map((d) => (
@@ -144,7 +170,12 @@ export default function Sidebar() {
         {/* ── Ajustar diseño activo ──────────────────────────────── */}
         {activeDesign && (
           <section>
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Ajustar diseño</h2>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Ajustar diseño</h2>
+              <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                ~{cmW}×{cmH} cm
+              </span>
+            </div>
             <p className="text-xs text-gray-400 mb-2">Arrastra el logo en 3D para moverlo</p>
 
             {/* Side toggle */}
@@ -168,9 +199,35 @@ export default function Sidebar() {
               </div>
             </div>
 
-            <SliderRow label="Tamaño"       value={activeDesign.scale} min={0.05} max={0.80} step={0.01}  onChange={setActiveScale} />
-            <SliderRow label="Pos. X  ←  →" value={activeDesign.x}     min={-0.45} max={0.45} step={0.005} onChange={setActiveX} />
-            <SliderRow label="Pos. Y  ↓  ↑" value={activeDesign.y}     min={-0.70} max={0.70} step={0.005} onChange={setActiveY} />
+            <SliderRow label="Tamaño" value={activeDesign.scale} min={0.05} max={0.80} step={0.01} onChange={setActiveScale} />
+            {activeView === '3d' ? (
+              <>
+                <SliderRow label="Pos. X  ←  →" value={activeDesign.x} min={-0.45} max={0.45}  step={0.005} onChange={setActiveX} />
+                <SliderRow label="Pos. Y  ↓  ↑" value={activeDesign.y} min={-0.70} max={0.70}  step={0.005} onChange={setActiveY} />
+                <label className="flex items-center gap-2 cursor-pointer select-none mt-1">
+                  <input
+                    type="checkbox"
+                    checked={showHandles}
+                    onChange={(e) => setShowHandles(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-gray-800 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-600">Mostrar esquinas</span>
+                </label>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-gray-400 mt-1 mb-2">Arrastra el logo en el visor para moverlo</p>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showHandles}
+                    onChange={(e) => setShowHandles(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-gray-800 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-600">Mostrar esquinas y bordes</span>
+                </label>
+              </>
+            )}
           </section>
         )}
 
@@ -234,7 +291,7 @@ export default function Sidebar() {
 
       {/* Footer — hidden on mobile to save space */}
       <div className="hidden md:block px-5 py-4 border-t border-gray-100 flex-shrink-0">
-        <p className="text-xs text-gray-300 text-center">michuno.mx · 2026</p>
+        <p className="text-xs text-gray-300 text-center">Michuno.com.mx · 2026</p>
       </div>
     </aside>
   )

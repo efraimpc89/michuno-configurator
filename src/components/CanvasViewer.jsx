@@ -1,31 +1,30 @@
-import { useRef, useEffect, useLayoutEffect, useState, useCallback, Suspense } from 'react'
+import { useRef, useEffect, useState, useCallback, Suspense } from 'react'
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls, useGLTF, Center, ContactShadows, Environment } from '@react-three/drei'
 import * as THREE from 'three'
-import { DecalGeometry } from 'three-stdlib'
 import { useConfigurator, MODELS } from '../context/ConfiguratorContext'
 
 MODELS.forEach(m => useGLTF.preload(m.path))
 
-const MODEL_Y = 0.20  // lift so shirt bottom clears the shadow plane
+const MODEL_Y = 0.20
 
-function SingleDecal({ design, mainMesh, isDraggingRef, frontZ }) {
-  const { updateDesign, setActiveDesignId } = useConfigurator()
+function SingleDecal({ design, isDraggingRef, frontZ }) {
+  const { updateDesign, setActiveDesignId, activeView } = useConfigurator()
   const [texture, setTexture] = useState(null)
   const { camera, gl } = useThree()
-  const ref = useRef()
 
-  const isFront  = design.side !== 'espalda'
-  const planeZ   = isFront ? frontZ : -frontZ
+  const isFront = design.side !== 'espalda'
+  const pz      = isFront ? frontZ + 0.005 : -(frontZ + 0.005)
+
   const hitPlane = useRef(new THREE.Plane())
   const hitPoint = useRef(new THREE.Vector3())
 
   useEffect(() => {
     hitPlane.current.setFromNormalAndCoplanarPoint(
       new THREE.Vector3(0, 0, isFront ? 1 : -1),
-      new THREE.Vector3(0, 0, planeZ)
+      new THREE.Vector3(0, 0, pz)
     )
-  }, [planeZ, isFront])
+  }, [pz, isFront])
 
   useEffect(() => {
     if (!design.url) { setTexture(null); return }
@@ -39,27 +38,6 @@ function SingleDecal({ design, mainMesh, isDraggingRef, frontZ }) {
     })
     return () => { live = false }
   }, [design.url])
-
-  // Rebuild DecalGeometry every time projection params change.
-  // useLayoutEffect fires AFTER drei <Center>'s useLayoutEffect has already
-  // applied its centering offset, so calling updateWorldMatrix here gets the
-  // correct shirt world-matrix even before R3F's first renderer.render().
-  useLayoutEffect(() => {
-    if (!ref.current || !mainMesh || !texture) return
-
-    // Walk the full parent chain so matrixWorld is valid for DecalGeometry
-    mainMesh.updateWorldMatrix(true, false)
-
-    const position    = new THREE.Vector3(design.x, design.y + MODEL_Y, planeZ)
-    const orientation = new THREE.Euler(0, isFront ? 0 : Math.PI, 0)
-    // Z depth: enough to wrap front-facing geometry without breaching the back panel
-    const depthZ = Math.min(frontZ * 1.4, 0.28)
-    const size   = new THREE.Vector3(design.scale, design.scale, depthZ)
-
-    const prev = ref.current.geometry
-    ref.current.geometry = new DecalGeometry(mainMesh, position, orientation, size)
-    if (prev?.isBufferGeometry) prev.dispose()
-  }, [mainMesh, texture, design.x, design.y, design.scale, design.side, frontZ, planeZ, isFront])
 
   const startDrag = (e) => {
     e.stopPropagation()
@@ -94,35 +72,144 @@ function SingleDecal({ design, mainMesh, isDraggingRef, frontZ }) {
     document.addEventListener('pointerup',   handleUp)
   }
 
-  if (!texture || !mainMesh) return null
+  // Hidden in 2D mode — DesignOverlay takes over
+  if (!texture || activeView === '2d') return null
 
   return (
     <mesh
-      ref={ref}
+      position={[design.x, design.y + MODEL_Y, pz]}
+      rotation={[0, isFront ? 0 : Math.PI, 0]}
       renderOrder={10}
       onPointerDown={startDrag}
       onPointerEnter={() => { if (!isDraggingRef.current) document.body.style.cursor = 'grab' }}
       onPointerLeave={() => { if (!isDraggingRef.current) document.body.style.cursor = '' }}
     >
-      <meshStandardMaterial
+      <planeGeometry args={[design.scale, design.scale / (design.aspectRatio || 1)]} />
+      <meshBasicMaterial
         map={texture}
-        roughness={1.0}
-        metalness={0.0}
         transparent
         alphaTest={0.05}
         depthWrite={false}
+        toneMapped={false}
         polygonOffset
-        polygonOffsetFactor={-10}
-        polygonOffsetUnits={-10}
+        polygonOffsetFactor={-4}
+        polygonOffsetUnits={-4}
       />
     </mesh>
   )
 }
 
+function ActiveDesignHandles({ design, isDraggingRef, frontZ }) {
+  const { updateDesign } = useConfigurator()
+  const { camera, gl }   = useThree()
+  const isFront = design.side !== 'espalda'
+  const pz      = isFront ? frontZ + 0.012 : -(frontZ + 0.012)
+
+  const ar    = design.aspectRatio || 1
+  const halfX = design.scale / 2
+  const halfY = (design.scale / ar) / 2
+  const cx    = design.x
+  const cy    = design.y + MODEL_Y
+
+  const corners = [[-1, 1], [1, 1], [1, -1], [-1, -1]]
+
+  const hitPlane = useRef(new THREE.Plane())
+  useEffect(() => {
+    hitPlane.current.setFromNormalAndCoplanarPoint(
+      new THREE.Vector3(0, 0, isFront ? 1 : -1),
+      new THREE.Vector3(0, 0, pz)
+    )
+  }, [pz, isFront])
+
+  const startCornerDrag = (e) => {
+    e.stopPropagation()
+    isDraggingRef.current = true
+    document.body.style.cursor = 'nwse-resize'
+
+    const canvas   = gl.domElement
+    const rect     = canvas.getBoundingClientRect()
+    const hitPoint = new THREE.Vector3()
+
+    const handleMove = (evt) => {
+      const ndcX = ((evt.clientX - rect.left) / rect.width)  * 2 - 1
+      const ndcY = -((evt.clientY - rect.top)  / rect.height) * 2 + 1
+      const ray  = new THREE.Raycaster()
+      ray.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera)
+      if (ray.ray.intersectPlane(hitPlane.current, hitPoint)) {
+        const dx  = Math.abs(hitPoint.x - cx)
+        const dy  = Math.abs(hitPoint.y - cy)
+        const s   = parseFloat(Math.max(0.05, Math.min(0.80, Math.max(dx * 2, dy * 2 * ar))).toFixed(3))
+        updateDesign(design.id, { scale: s })
+      }
+    }
+
+    const handleUp = () => {
+      document.removeEventListener('pointermove', handleMove)
+      document.removeEventListener('pointerup',   handleUp)
+      isDraggingRef.current = false
+      document.body.style.cursor = ''
+    }
+
+    document.addEventListener('pointermove', handleMove)
+    document.addEventListener('pointerup',   handleUp)
+  }
+
+  return (
+    <>
+      {corners.map(([sx, sy], i) => (
+        <mesh
+          key={i}
+          position={[cx + sx * halfX, cy + sy * halfY, pz]}
+          renderOrder={21}
+          onPointerDown={startCornerDrag}
+          onPointerEnter={() => { document.body.style.cursor = 'nwse-resize' }}
+          onPointerLeave={() => { if (!isDraggingRef.current) document.body.style.cursor = '' }}
+        >
+          <sphereGeometry args={[0.018, 10, 10]} />
+          <meshBasicMaterial color="#ffffff" depthTest={false} />
+        </mesh>
+      ))}
+    </>
+  )
+}
+
+// Snaps camera to front/back on 2D view entry or side change; animates in 3D on side toggle
+function CameraController() {
+  const { activeView, view2DSide, cameraAnimRef } = useConfigurator()
+  const frontTarget = useRef(new THREE.Vector3(0, MODEL_Y,  2.5))
+  const backTarget  = useRef(new THREE.Vector3(0, MODEL_Y, -2.5))
+  const animPos     = useRef(new THREE.Vector3())
+  const snapFrames  = useRef(40)
+
+  useEffect(() => { snapFrames.current = 40 }, [activeView, view2DSide])
+
+  useFrame(({ camera }) => {
+    if (activeView === '2d' && snapFrames.current > 0) {
+      const tgt = view2DSide === 'espalda' ? backTarget.current : frontTarget.current
+      camera.position.lerp(tgt, 0.12)
+      camera.lookAt(0, MODEL_Y, 0)
+      snapFrames.current--
+      return
+    }
+    const anim = cameraAnimRef.current
+    if (anim && anim.framesLeft > 0 && activeView === '3d') {
+      animPos.current.set(0, MODEL_Y, anim.z)
+      camera.position.lerp(animPos.current, 0.10)
+      camera.lookAt(0, MODEL_Y, 0)
+      anim.framesLeft--
+    }
+  })
+  return null
+}
+
 function ControlledOrbitControls({ isDraggingRef }) {
+  const { activeView } = useConfigurator()
   const ref = useRef()
   useFrame(() => {
-    if (ref.current) ref.current.enabled = !isDraggingRef.current
+    if (ref.current) {
+      ref.current.enabled      = !isDraggingRef.current
+      ref.current.enableRotate = activeView === '3d' && !isDraggingRef.current
+    }
   })
   return (
     <OrbitControls
@@ -196,12 +283,15 @@ function ShirtModel({ onMeshFound, onFrontZ }) {
 }
 
 export default function CanvasViewer() {
-  const { designs, currentModel } = useConfigurator()
+  const { designs, activeDesign, currentModel, activeView, showHandles, frontZRef } = useConfigurator()
   const isDraggingRef = useRef(false)
   const [mainMesh, setMainMesh] = useState(null)
   const [frontZ, setFrontZ]     = useState(0.22)
   const onMeshFound = useCallback((mesh) => setMainMesh(mesh), [])
-  const onFrontZ    = useCallback((z)    => setFrontZ(z),    [])
+  const onFrontZ    = useCallback((z) => {
+    setFrontZ(z)
+    frontZRef.current = z
+  }, [frontZRef])
 
   return (
     <Canvas
@@ -209,7 +299,7 @@ export default function CanvasViewer() {
       gl={{ antialias: true, preserveDrawingBuffer: true }}
       style={{ touchAction: 'none' }}
     >
-      <color attach="background" args={['#4a4745']} />
+      <color attach="background" args={['#3a3835']} />
 
       <ambientLight intensity={0.35} />
       <directionalLight position={[2, 4, 3]} intensity={0.55} castShadow shadow-mapSize={[1024, 1024]} />
@@ -219,17 +309,26 @@ export default function CanvasViewer() {
 
       <Suspense fallback={null}>
         <Environment preset="studio" />
+        <CameraController />
         <ShirtModel onMeshFound={onMeshFound} onFrontZ={onFrontZ} />
 
-        {mainMesh && designs.map(design => (
+        {designs.map(design => (
           <SingleDecal
             key={`${currentModel.id}-${design.id}`}
             design={design}
-            mainMesh={mainMesh}
             isDraggingRef={isDraggingRef}
             frontZ={frontZ}
           />
         ))}
+
+        {mainMesh && activeDesign && activeView === '3d' && (
+          <ActiveDesignHandles
+            key={`handles-${activeDesign.id}`}
+            design={activeDesign}
+            isDraggingRef={isDraggingRef}
+            frontZ={frontZ}
+          />
+        )}
 
         <ContactShadows position={[0, -0.55, 0]} opacity={0.45} scale={4} blur={2.5} />
       </Suspense>
