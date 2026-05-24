@@ -99,9 +99,9 @@ function SingleDecal({ design, isDraggingRef, frontZ, materialMaps = {} }) {
         normalMap={normalMap}
         roughnessMap={roughnessMap}
         aoMap={aoMap}
-        roughness={0.85}
+        roughness={1.0}
         metalness={0.0}
-        envMapIntensity={0.4}
+        envMapIntensity={0}
         transparent
         alphaTest={0.05}
         depthWrite={false}

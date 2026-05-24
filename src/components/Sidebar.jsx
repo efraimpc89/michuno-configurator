@@ -251,9 +251,18 @@ export default function Sidebar() {
               />
             ))}
           </div>
-          {selectedColorName && (
-            <p className="text-xs text-gray-400 mt-1.5 text-center">{selectedColorName}</p>
-          )}
+          <label className="flex items-center gap-2 cursor-pointer mt-3">
+            <span className="text-xs text-gray-600 font-medium flex-shrink-0">Color libre</span>
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer p-0.5 bg-white flex-shrink-0"
+            />
+            <span className="text-xs text-gray-400 tabular-nums font-mono">
+              {selectedColorName || color}
+            </span>
+          </label>
         </section>
 
         {/* ── Talla ─────────────────────────────────────────────── */}
