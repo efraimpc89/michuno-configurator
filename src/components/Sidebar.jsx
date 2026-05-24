@@ -204,7 +204,7 @@ export default function Sidebar() {
             {activeView === '3d' ? (
               <>
                 <SliderRow label="Pos. X  ←  →" value={activeDesign.x} min={-0.45} max={0.45}  step={0.005} onChange={setActiveX} />
-                <SliderRow label="Pos. Y  ↓  ↑" value={activeDesign.y} min={-0.70} max={0.70}  step={0.005} onChange={setActiveY} />
+                <SliderRow label="Pos. Y  ↓  ↑" value={activeDesign.y} min={-1.0} max={1.0}  step={0.005} onChange={setActiveY} />
                 <label className="flex items-center gap-2 cursor-pointer select-none mt-1">
                   <input
                     type="checkbox"
