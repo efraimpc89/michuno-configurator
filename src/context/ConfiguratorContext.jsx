@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 
 export const COLORS = [
-  { name: 'Blanco',        hex: '#FFFFFF' },
-  { name: 'Negro',         hex: '#1A1A1A' },
+  { name: 'Blanco',        hex: '#F3F3F3' },
+  { name: 'Negro',         hex: '#1C1C1C' },
   { name: 'Gris Jaspe',    hex: '#B2B4B3' },
   { name: 'Azul Marino',   hex: '#1D2A44' },
   { name: 'Rojo',          hex: '#B31B1B' },

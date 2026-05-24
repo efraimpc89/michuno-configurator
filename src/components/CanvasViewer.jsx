@@ -1,18 +1,19 @@
-import { useRef, useEffect, useState, Suspense } from 'react'
+import { useRef, useEffect, useState, useCallback, Suspense } from 'react'
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
-import { OrbitControls, useGLTF, Center, ContactShadows, Environment } from '@react-three/drei'
+import { OrbitControls, useGLTF, Center, ContactShadows, Environment, Decal } from '@react-three/drei'
 import * as THREE from 'three'
 import { useConfigurator, MODELS } from '../context/ConfiguratorContext'
 
 MODELS.forEach(m => useGLTF.preload(m.path))
 
-// Z distance in front of the centered+normalized shirt (~1.4 units tall)
+// Z used for the drag-projection plane (world space, front of normalized shirt)
 const FRONT_Z = 0.22
 
-function DraggableDecal({ isDraggingRef }) {
+function ShirtDecal({ mainMesh, isDraggingRef }) {
   const { decalImageUrl, decalScale, decalX, setDecalX, decalY, setDecalY } = useConfigurator()
   const [texture, setTexture] = useState(null)
-  const [aspect, setAspect] = useState(1)
+  // Stable ref object captured once at mount — Decal's internal useState reads .current
+  const [meshRef] = useState(() => ({ current: mainMesh }))
   const { camera, gl } = useThree()
   const hitPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 0, 1), -FRONT_Z))
   const hitPoint = useRef(new THREE.Vector3())
@@ -25,9 +26,6 @@ function DraggableDecal({ isDraggingRef }) {
       if (!live) return
       tex.colorSpace = THREE.SRGBColorSpace
       tex.needsUpdate = true
-      const w = tex.image?.naturalWidth || tex.image?.width || 1
-      const h = tex.image?.naturalHeight || tex.image?.height || 1
-      setAspect(w / h)
       setTexture(tex)
     })
     return () => { live = false }
@@ -66,21 +64,27 @@ function DraggableDecal({ isDraggingRef }) {
   if (!texture) return null
 
   return (
-    <mesh
+    <Decal
+      mesh={meshRef}
       position={[decalX, decalY, FRONT_Z]}
+      rotation={[0, 0, 0]}
+      scale={[decalScale, decalScale, 0.35]}
       renderOrder={2}
       onPointerDown={startDrag}
       onPointerEnter={() => { if (!isDraggingRef.current) document.body.style.cursor = 'grab' }}
       onPointerLeave={() => { if (!isDraggingRef.current) document.body.style.cursor = '' }}
     >
-      <planeGeometry args={[decalScale * aspect, decalScale]} />
-      <meshBasicMaterial
+      <meshStandardMaterial
         map={texture}
+        roughness={1.0}
+        metalness={0.0}
         transparent
         alphaTest={0.05}
         depthWrite={false}
+        polygonOffset
+        polygonOffsetFactor={-4}
       />
-    </mesh>
+    </Decal>
   )
 }
 
@@ -101,30 +105,40 @@ function ControlledOrbitControls({ isDraggingRef }) {
   )
 }
 
-function ShirtScene() {
+function ShirtModel({ onMeshFound }) {
   const { color, currentScale, currentModel } = useConfigurator()
   const { scene: rawScene } = useGLTF(currentModel.path)
   const [clonedScene, setClonedScene] = useState(null)
   const [normalizedScale, setNormalizedScale] = useState(1)
 
   useEffect(() => {
+    onMeshFound(null) // clear while loading
     const clone = rawScene.clone(true)
+
+    // Find the mesh with the most vertices (main shirt body)
+    let bestMesh = null
+    let maxVerts = 0
     clone.traverse(child => {
-      if (child.isMesh && child.material) child.material = child.material.clone()
+      if (!child.isMesh) return
+      child.material = child.material.clone()
+      const count = child.geometry.attributes.position?.count ?? 0
+      if (count > maxVerts) { maxVerts = count; bestMesh = child }
     })
+
     const box = new THREE.Box3().setFromObject(clone)
     const size = new THREE.Vector3()
     box.getSize(size)
     setNormalizedScale(1.4 / (size.y || 1))
     setClonedScene(clone)
-  }, [rawScene])
+    onMeshFound(bestMesh)
+  }, [rawScene, onMeshFound])
 
   useEffect(() => {
     if (!clonedScene) return
     clonedScene.traverse(child => {
       if (!child.isMesh) return
       child.material.color.set(color)
-      child.material.roughness = 0.75
+      child.material.roughness = 0.85
       child.material.metalness = 0.0
       child.material.needsUpdate = true
     })
@@ -144,8 +158,10 @@ function ShirtScene() {
 }
 
 export default function CanvasViewer() {
-  const { decalImageUrl } = useConfigurator()
+  const { decalImageUrl, currentModel } = useConfigurator()
   const isDraggingRef = useRef(false)
+  const [mainMesh, setMainMesh] = useState(null)
+  const onMeshFound = useCallback((mesh) => setMainMesh(mesh), [])
 
   return (
     <Canvas
@@ -154,15 +170,21 @@ export default function CanvasViewer() {
     >
       <color attach="background" args={['#4a4745']} />
 
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[2, 4, 3]} intensity={1.4} castShadow shadow-mapSize={[1024, 1024]} />
-      <directionalLight position={[-2, 1, 2]} intensity={0.4} />
-      <directionalLight position={[0, -1, 1]} intensity={0.15} />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[2, 4, 3]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
+      <directionalLight position={[-2, 1, 2]} intensity={0.35} />
+      <directionalLight position={[0, -1, 1]} intensity={0.12} />
 
       <Suspense fallback={null}>
         <Environment preset="studio" />
-        <ShirtScene />
-        {decalImageUrl && <DraggableDecal isDraggingRef={isDraggingRef} />}
+        <ShirtModel onMeshFound={onMeshFound} />
+        {decalImageUrl && mainMesh && (
+          <ShirtDecal
+            key={currentModel.id}
+            mainMesh={mainMesh}
+            isDraggingRef={isDraggingRef}
+          />
+        )}
         <ContactShadows position={[0, -0.85, 0]} opacity={0.45} scale={4} blur={2.5} />
       </Suspense>
 
