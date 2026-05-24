@@ -148,34 +148,37 @@ export default function Sidebar() {
           </div>
         </section>
 
-        {/* Decal adjustment sliders — visible only when image is loaded */}
+        {/* Decal adjustment — visible only when image is loaded */}
         {decalImageUrl && (
           <section>
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">
               Ajustar diseño
             </h2>
+            <p className="text-xs text-gray-400 mb-3">
+              Arrastra el logo en 3D para moverlo
+            </p>
             <SliderRow
               label="Tamaño"
               value={decalScale}
               min={0.05}
-              max={0.50}
+              max={0.80}
               step={0.01}
               onChange={setDecalScale}
             />
             <SliderRow
               label="Posición X  ←  →"
               value={decalX}
-              min={-0.20}
-              max={0.20}
-              step={0.01}
+              min={-0.45}
+              max={0.45}
+              step={0.005}
               onChange={setDecalX}
             />
             <SliderRow
               label="Posición Y  ↓  ↑"
               value={decalY}
-              min={-0.05}
-              max={0.25}
-              step={0.01}
+              min={-0.70}
+              max={0.70}
+              step={0.005}
               onChange={setDecalY}
             />
           </section>

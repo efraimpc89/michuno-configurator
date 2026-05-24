@@ -31,9 +31,9 @@ export function ConfiguratorProvider({ children }) {
   const [size, setSize]                   = useState('M')
   const [modelId, setModelId]             = useState('playera1')
   const [decalImageUrl, setDecalImageUrl] = useState(null)
-  const [decalScale, setDecalScale]       = useState(0.20)
+  const [decalScale, setDecalScale]       = useState(0.30)
   const [decalX, setDecalX]               = useState(0)
-  const [decalY, setDecalY]               = useState(0.15)
+  const [decalY, setDecalY]               = useState(0.30)
 
   const currentScale  = (SIZES.find(s  => s.label === size)    ?? SIZES[1]).scale
   const currentModel  = (MODELS.find(m => m.id    === modelId) ?? MODELS[0])
