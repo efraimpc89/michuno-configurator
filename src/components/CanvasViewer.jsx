@@ -7,6 +7,13 @@ import { useMaterialMaps } from '../hooks/useMaterialMaps'
 
 MODELS.forEach(m => useGLTF.preload(m.path))
 
+function hexLuminance(hex) {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+}
+
 const MODEL_Y = 0.20
 
 function SingleDecal({ design, isDraggingRef, frontZ, materialMaps = {} }) {
@@ -290,7 +297,8 @@ function ShirtModel({ onMeshFound, onFrontZ }) {
 }
 
 export default function CanvasViewer() {
-  const { designs, activeDesign, currentModel, activeView, showHandles, frontZRef } = useConfigurator()
+  const { designs, activeDesign, currentModel, activeView, showHandles, frontZRef, bgColor } = useConfigurator()
+  const shadowOpacity = hexLuminance(bgColor) >= 0.4 ? 0.22 : 0.45
   const isDraggingRef = useRef(false)
   const [mainMesh, setMainMesh] = useState(null)
   const [frontZ, setFrontZ]     = useState(0.22)
@@ -307,7 +315,7 @@ export default function CanvasViewer() {
       gl={{ antialias: true, preserveDrawingBuffer: true }}
       style={{ touchAction: 'none' }}
     >
-      <color attach="background" args={['#3a3835']} />
+      <color attach="background" args={[bgColor]} />
 
       <ambientLight intensity={0.35} />
       <directionalLight position={[2, 4, 3]} intensity={0.55} castShadow shadow-mapSize={[1024, 1024]} />
@@ -339,7 +347,7 @@ export default function CanvasViewer() {
           />
         )}
 
-        <ContactShadows position={[0, -0.55, 0]} opacity={0.45} scale={4} blur={2.5} />
+        <ContactShadows position={[0, -0.55, 0]} opacity={shadowOpacity} scale={4} blur={2.5} />
       </Suspense>
 
       <ControlledOrbitControls isDraggingRef={isDraggingRef} />
