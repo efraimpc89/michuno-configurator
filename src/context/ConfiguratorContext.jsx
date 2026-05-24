@@ -35,6 +35,7 @@ export function ConfiguratorProvider({ children }) {
   const [activeView, setActiveView]   = useState('2d')    // '3d' | '2d'
   const [view2DSide, setView2DSide]   = useState('frente') // which side is visible in 2D overlay
   const [showHandles, setShowHandles] = useState(false)    // bounding box corners visible
+  const [bgColor, setBgColor]         = useState('#3a3835') // background color
   const frontZRef    = useRef(0.22)   // written by CanvasViewer, read by DesignOverlay
   const cameraAnimRef = useRef(null)  // { z: number, framesLeft: number } — triggers smooth camera move
 
@@ -81,6 +82,11 @@ export function ConfiguratorProvider({ children }) {
     cameraAnimRef.current = { z: side === 'espalda' ? -2.5 : 2.5, framesLeft: 45 }
   }, [activeDesignId, updateDesign])
 
+  const snapCameraToSide = useCallback((side) => {
+    setView2DSide(side)
+    cameraAnimRef.current = { z: side === 'espalda' ? -2.5 : 2.5, framesLeft: 50 }
+  }, [])
+
   return (
     <ConfiguratorContext.Provider value={{
       color, setColor,
@@ -96,6 +102,8 @@ export function ConfiguratorProvider({ children }) {
       activeView, setActiveView,
       view2DSide,
       showHandles, setShowHandles,
+      bgColor, setBgColor,
+      snapCameraToSide,
       frontZRef, cameraAnimRef,
       COLORS, SIZES, MODELS,
     }}>
