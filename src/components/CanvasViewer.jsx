@@ -9,7 +9,7 @@ MODELS.forEach(m => useGLTF.preload(m.path))
 const FRONT_Z  = 0.22   // Z of shirt front surface in normalized world space
 const MODEL_Y  = 0.20   // lift so shirt bottom clears the shadow plane
 
-function SingleDecal({ design, mainMesh, isDraggingRef }) {
+function SingleDecal({ design, mainMesh, isDraggingRef, frontZ }) {
   const { updateDesign, setActiveDesignId } = useConfigurator()
   const [texture, setTexture] = useState(null)
   // Stable ref captured once at mount so Decal's internal useState gets the right mesh
@@ -17,11 +17,11 @@ function SingleDecal({ design, mainMesh, isDraggingRef }) {
   const { camera, gl } = useThree()
 
   const isFront  = design.side !== 'espalda'
-  const planeZ   = isFront ? FRONT_Z : -FRONT_Z
+  const planeZ   = isFront ? frontZ : -frontZ
   const hitPlane = useRef(
     isFront
-      ? new THREE.Plane(new THREE.Vector3(0, 0,  1), -FRONT_Z)
-      : new THREE.Plane(new THREE.Vector3(0, 0, -1), -FRONT_Z)
+      ? new THREE.Plane(new THREE.Vector3(0, 0,  1), -frontZ)
+      : new THREE.Plane(new THREE.Vector3(0, 0, -1), -frontZ)
   )
   const hitPoint = useRef(new THREE.Vector3())
 
@@ -78,6 +78,7 @@ function SingleDecal({ design, mainMesh, isDraggingRef }) {
     <Decal
       mesh={meshRef}
       position={[design.x, design.y + MODEL_Y, planeZ]}
+      debug={false}
       rotation={[0, isFront ? 0 : Math.PI, 0]}
       scale={[design.scale, design.scale, 0.35]}
       renderOrder={10}
@@ -108,6 +109,7 @@ function ControlledOrbitControls({ isDraggingRef }) {
   return (
     <OrbitControls
       ref={ref}
+      target={[0, MODEL_Y, 0]}
       enableZoom
       enablePan={false}
       minDistance={1.5}
@@ -117,7 +119,7 @@ function ControlledOrbitControls({ isDraggingRef }) {
   )
 }
 
-function ShirtModel({ onMeshFound }) {
+function ShirtModel({ onMeshFound, onFrontZ }) {
   const { color, roughness, currentScale, currentModel } = useConfigurator()
   const { scene: rawScene } = useGLTF(currentModel.path)
   const [clonedScene, setClonedScene]       = useState(null)
@@ -127,23 +129,26 @@ function ShirtModel({ onMeshFound }) {
     onMeshFound(null)
     const clone = rawScene.clone(true)
 
-    // Pick the mesh with the most vertices as the main shirt body
+    // Pick the mesh with the tallest Y-span — reliably selects shirt body over collar/buttons
     let bestMesh = null
-    let maxVerts = 0
+    let maxHeight = 0
     clone.traverse(child => {
       if (!child.isMesh) return
       child.material = child.material.clone()
-      const count = child.geometry.attributes.position?.count ?? 0
-      if (count > maxVerts) { maxVerts = count; bestMesh = child }
+      const mb = new THREE.Box3().setFromObject(child)
+      const h  = mb.max.y - mb.min.y
+      if (h > maxHeight) { maxHeight = h; bestMesh = child }
     })
 
     const box  = new THREE.Box3().setFromObject(clone)
     const size = new THREE.Vector3()
     box.getSize(size)
-    setNormalizedScale(1.4 / (size.y || 1))
+    const nScale = 1.4 / (size.y || 1)
+    setNormalizedScale(nScale)
     setClonedScene(clone)
     onMeshFound(bestMesh)
-  }, [rawScene, onMeshFound])
+    onFrontZ?.(Math.max(0.15, (size.z * nScale) / 2 + 0.01))
+  }, [rawScene, onMeshFound, onFrontZ])
 
   useEffect(() => {
     if (!clonedScene) return
@@ -176,11 +181,13 @@ export default function CanvasViewer() {
   const { designs, currentModel } = useConfigurator()
   const isDraggingRef = useRef(false)
   const [mainMesh, setMainMesh] = useState(null)
+  const [frontZ, setFrontZ]     = useState(0.22)
   const onMeshFound = useCallback((mesh) => setMainMesh(mesh), [])
+  const onFrontZ    = useCallback((z)    => setFrontZ(z),    [])
 
   return (
     <Canvas
-      camera={{ position: [0, 0.1, 2.5], fov: 45 }}
+      camera={{ position: [0, MODEL_Y, 2.5], fov: 45 }}
       gl={{ antialias: true, preserveDrawingBuffer: true }}
       style={{ touchAction: 'none' }}
     >
@@ -199,7 +206,7 @@ export default function CanvasViewer() {
 
       <Suspense fallback={null}>
         <Environment preset="studio" />
-        <ShirtModel onMeshFound={onMeshFound} />
+        <ShirtModel onMeshFound={onMeshFound} onFrontZ={onFrontZ} />
 
         {/* One Decal per design — they persist across model changes via key */}
         {mainMesh && designs.map(design => (
@@ -208,6 +215,7 @@ export default function CanvasViewer() {
             design={design}
             mainMesh={mainMesh}
             isDraggingRef={isDraggingRef}
+            frontZ={frontZ}
           />
         ))}
 
