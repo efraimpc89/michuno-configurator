@@ -31,6 +31,7 @@ export default function Sidebar() {
     addDesign, removeDesign,
     setActiveX, setActiveY, setActiveScale, setActiveSide,
     activeView, showHandles, setShowHandles,
+    bgColor, setBgColor,
     COLORS, SIZES, MODELS,
   } = useConfigurator()
 
@@ -285,6 +286,37 @@ export default function Sidebar() {
             step={0.01}
             onChange={setRoughness}
           />
+        </section>
+
+        {/* ── Fondo de Estudio ──────────────────────────────────── */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Fondo de Estudio</h2>
+          <div className="grid grid-cols-5 gap-2 mb-3">
+            {COLORS.map((c) => (
+              <button
+                key={c.hex}
+                title={c.name}
+                onClick={() => setBgColor(c.hex)}
+                className={[
+                  'h-8 w-8 rounded-full transition-all duration-150 mx-auto block border-2',
+                  bgColor === c.hex
+                    ? 'border-gray-800 scale-110 shadow-md'
+                    : 'border-gray-200 hover:scale-105 hover:border-gray-400',
+                ].join(' ')}
+                style={{ backgroundColor: c.hex }}
+              />
+            ))}
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-xs text-gray-600 font-medium flex-shrink-0">Color libre</span>
+            <input
+              type="color"
+              value={bgColor}
+              onChange={(e) => setBgColor(e.target.value)}
+              className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer p-0.5 bg-white flex-shrink-0"
+            />
+            <span className="text-xs text-gray-400 tabular-nums font-mono">{bgColor}</span>
+          </label>
         </section>
 
       </div>
