@@ -29,10 +29,10 @@ export const MODELS = [
 const ConfiguratorContext = createContext(null)
 
 export function ConfiguratorProvider({ children }) {
-  const [color, setColor]           = useState('#EAEAEA')
+  const [color, setColor]           = useState('#181818')
   const [size, setSize]             = useState('M')
   const [modelId, setModelId]       = useState('playera1')
-  const [roughness, setRoughness]   = useState(0.85)
+  const [roughness, setRoughness]   = useState(1.00)
 
   // Multi-design system
   const [designs, setDesigns]                   = useState([])

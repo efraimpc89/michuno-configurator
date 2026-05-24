@@ -1,25 +1,25 @@
-import { useRef, useEffect, useState, useCallback, Suspense } from 'react'
+import { useRef, useEffect, useLayoutEffect, useState, useCallback, Suspense } from 'react'
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls, useGLTF, Center, ContactShadows, Environment } from '@react-three/drei'
 import * as THREE from 'three'
+import { DecalGeometry } from 'three-stdlib'
 import { useConfigurator, MODELS } from '../context/ConfiguratorContext'
 
 MODELS.forEach(m => useGLTF.preload(m.path))
 
 const MODEL_Y = 0.20  // lift so shirt bottom clears the shadow plane
 
-function SingleDecal({ design, isDraggingRef, frontZ }) {
+function SingleDecal({ design, mainMesh, isDraggingRef, frontZ }) {
   const { updateDesign, setActiveDesignId } = useConfigurator()
   const [texture, setTexture] = useState(null)
   const { camera, gl } = useThree()
+  const ref = useRef()
 
   const isFront  = design.side !== 'espalda'
-  // Plane sits 2 mm in front of the shirt surface — always visible, no DecalGeometry timing issues
-  const planeZ   = isFront ? frontZ + 0.002 : -(frontZ + 0.002)
+  const planeZ   = isFront ? frontZ : -frontZ
   const hitPlane = useRef(new THREE.Plane())
   const hitPoint = useRef(new THREE.Vector3())
 
-  // Keep the drag plane in sync whenever frontZ or side changes
   useEffect(() => {
     hitPlane.current.setFromNormalAndCoplanarPoint(
       new THREE.Vector3(0, 0, isFront ? 1 : -1),
@@ -39,6 +39,27 @@ function SingleDecal({ design, isDraggingRef, frontZ }) {
     })
     return () => { live = false }
   }, [design.url])
+
+  // Rebuild DecalGeometry every time projection params change.
+  // useLayoutEffect fires AFTER drei <Center>'s useLayoutEffect has already
+  // applied its centering offset, so calling updateWorldMatrix here gets the
+  // correct shirt world-matrix even before R3F's first renderer.render().
+  useLayoutEffect(() => {
+    if (!ref.current || !mainMesh || !texture) return
+
+    // Walk the full parent chain so matrixWorld is valid for DecalGeometry
+    mainMesh.updateWorldMatrix(true, false)
+
+    const position    = new THREE.Vector3(design.x, design.y + MODEL_Y, planeZ)
+    const orientation = new THREE.Euler(0, isFront ? 0 : Math.PI, 0)
+    // Z depth: enough to wrap front-facing geometry without breaching the back panel
+    const depthZ = Math.min(frontZ * 1.4, 0.28)
+    const size   = new THREE.Vector3(design.scale, design.scale, depthZ)
+
+    const prev = ref.current.geometry
+    ref.current.geometry = new DecalGeometry(mainMesh, position, orientation, size)
+    if (prev?.isBufferGeometry) prev.dispose()
+  }, [mainMesh, texture, design.x, design.y, design.scale, design.side, frontZ, planeZ, isFront])
 
   const startDrag = (e) => {
     e.stopPropagation()
@@ -73,27 +94,26 @@ function SingleDecal({ design, isDraggingRef, frontZ }) {
     document.addEventListener('pointerup',   handleUp)
   }
 
-  if (!texture) return null
+  if (!texture || !mainMesh) return null
 
   return (
     <mesh
-      position={[design.x, design.y + MODEL_Y, planeZ]}
-      rotation={[0, isFront ? 0 : Math.PI, 0]}
-      scale={[design.scale, design.scale, 1]}
-      renderOrder={100}
+      ref={ref}
+      renderOrder={10}
       onPointerDown={startDrag}
       onPointerEnter={() => { if (!isDraggingRef.current) document.body.style.cursor = 'grab' }}
       onPointerLeave={() => { if (!isDraggingRef.current) document.body.style.cursor = '' }}
     >
-      <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial
+      <meshStandardMaterial
         map={texture}
+        roughness={1.0}
+        metalness={0.0}
         transparent
-        alphaTest={0.01}
+        alphaTest={0.05}
         depthWrite={false}
         polygonOffset
-        polygonOffsetFactor={-4}
-        polygonOffsetUnits={-4}
+        polygonOffsetFactor={-10}
+        polygonOffsetUnits={-10}
       />
     </mesh>
   )
@@ -117,21 +137,26 @@ function ControlledOrbitControls({ isDraggingRef }) {
   )
 }
 
-function ShirtModel({ onFrontZ }) {
+function ShirtModel({ onMeshFound, onFrontZ }) {
   const { color, roughness, currentScale, currentModel } = useConfigurator()
   const { scene: rawScene } = useGLTF(currentModel.path)
   const [clonedScene, setClonedScene]         = useState(null)
   const [normalizedScale, setNormalizedScale] = useState(1)
 
   useEffect(() => {
+    onMeshFound(null)
     const clone = rawScene.clone(true)
+
+    let bestMesh = null
+    let maxHeight = 0
     clone.traverse(child => {
       if (!child.isMesh) return
-      // Clone geometry so we never mutate the shared GLTF cache
       child.geometry = child.geometry.clone()
-      // Recompute smooth normals — fixes dark folds on polo hem
       child.geometry.computeVertexNormals()
       child.material = child.material.clone()
+      const mb = new THREE.Box3().setFromObject(child)
+      const h  = mb.max.y - mb.min.y
+      if (h > maxHeight) { maxHeight = h; bestMesh = child }
     })
 
     const box  = new THREE.Box3().setFromObject(clone)
@@ -140,8 +165,9 @@ function ShirtModel({ onFrontZ }) {
     const nScale = 1.4 / (size.y || 1)
     setNormalizedScale(nScale)
     setClonedScene(clone)
+    onMeshFound(bestMesh)
     onFrontZ?.(Math.max(0.15, (size.z * nScale) / 2 + 0.01))
-  }, [rawScene, onFrontZ])
+  }, [rawScene, onMeshFound, onFrontZ])
 
   useEffect(() => {
     if (!clonedScene) return
@@ -172,8 +198,10 @@ function ShirtModel({ onFrontZ }) {
 export default function CanvasViewer() {
   const { designs, currentModel } = useConfigurator()
   const isDraggingRef = useRef(false)
-  const [frontZ, setFrontZ] = useState(0.22)
-  const onFrontZ = useCallback((z) => setFrontZ(z), [])
+  const [mainMesh, setMainMesh] = useState(null)
+  const [frontZ, setFrontZ]     = useState(0.22)
+  const onMeshFound = useCallback((mesh) => setMainMesh(mesh), [])
+  const onFrontZ    = useCallback((z)    => setFrontZ(z),    [])
 
   return (
     <Canvas
@@ -183,25 +211,21 @@ export default function CanvasViewer() {
     >
       <color attach="background" args={['#4a4745']} />
 
-      {/* Soft ambient — keeps darks dark without washing out colors */}
       <ambientLight intensity={0.35} />
-      {/* Key light — reduced to not blow out the fabric */}
       <directionalLight position={[2, 4, 3]} intensity={0.55} castShadow shadow-mapSize={[1024, 1024]} />
-      {/* Left fill */}
       <directionalLight position={[-2, 1, 2]} intensity={0.25} />
-      {/* Back/counter fill — preserves 3D volume without front glare */}
       <directionalLight position={[0, 1, -3]} intensity={0.15} />
-      {/* Subtle bottom rim */}
       <directionalLight position={[0, -1, 1]} intensity={0.08} />
 
       <Suspense fallback={null}>
         <Environment preset="studio" />
-        <ShirtModel onFrontZ={onFrontZ} />
+        <ShirtModel onMeshFound={onMeshFound} onFrontZ={onFrontZ} />
 
-        {designs.map(design => (
+        {mainMesh && designs.map(design => (
           <SingleDecal
             key={`${currentModel.id}-${design.id}`}
             design={design}
+            mainMesh={mainMesh}
             isDraggingRef={isDraggingRef}
             frontZ={frontZ}
           />
