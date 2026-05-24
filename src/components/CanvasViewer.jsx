@@ -321,7 +321,7 @@ export default function CanvasViewer() {
           />
         ))}
 
-        {mainMesh && activeDesign && activeView === '3d' && (
+        {mainMesh && activeDesign && activeView === '3d' && showHandles && (
           <ActiveDesignHandles
             key={`handles-${activeDesign.id}`}
             design={activeDesign}
