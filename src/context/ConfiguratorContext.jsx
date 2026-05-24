@@ -1,14 +1,16 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 
 export const COLORS = [
-  { name: 'Blanco',        hex: '#F3F3F3' },
-  { name: 'Negro',         hex: '#1C1C1C' },
-  { name: 'Gris Jaspe',    hex: '#B2B4B3' },
-  { name: 'Azul Marino',   hex: '#1D2A44' },
-  { name: 'Rojo',          hex: '#B31B1B' },
-  { name: 'Verde Militar', hex: '#3B4436' },
-  { name: 'Azul Rey',      hex: '#004B93' },
-  { name: 'Arena / Beige', hex: '#D2C4B1' },
+  { name: 'Blanco Textil',  hex: '#EAEAEA' },
+  { name: 'Negro Reactivo', hex: '#181818' },
+  { name: 'Gris Jaspe',     hex: '#9DA1A2' },
+  { name: 'Gris Carbón',    hex: '#4A4D4E' },
+  { name: 'Azul Marino',    hex: '#192231' },
+  { name: 'Azul Rey',       hex: '#10417A' },
+  { name: 'Rojo Oxford',    hex: '#80121A' },
+  { name: 'Verde Militar',  hex: '#3E4437' },
+  { name: 'Chocolate',      hex: '#3D2F2A' },
+  { name: 'Beige Arena',    hex: '#CEBDA5' },
 ]
 
 export const SIZES = [
@@ -27,7 +29,7 @@ export const MODELS = [
 const ConfiguratorContext = createContext(null)
 
 export function ConfiguratorProvider({ children }) {
-  const [color, setColor]           = useState('#F3F3F3')
+  const [color, setColor]           = useState('#EAEAEA')
   const [size, setSize]             = useState('M')
   const [modelId, setModelId]       = useState('playera1')
   const [roughness, setRoughness]   = useState(0.85)

@@ -174,14 +174,14 @@ export default function Sidebar() {
         {/* ── Color ─────────────────────────────────────────────── */}
         <section>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Color</h2>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {COLORS.map((c) => (
               <button
                 key={c.hex}
                 title={c.name}
                 onClick={() => setColor(c.hex)}
                 className={[
-                  'h-9 w-9 rounded-full transition-all duration-150 mx-auto block border-2',
+                  'h-8 w-8 rounded-full transition-all duration-150 mx-auto block border-2',
                   color === c.hex
                     ? 'border-gray-800 scale-110 shadow-md'
                     : 'border-gray-200 hover:scale-105 hover:border-gray-400',

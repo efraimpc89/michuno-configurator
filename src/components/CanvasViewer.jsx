@@ -80,7 +80,7 @@ function SingleDecal({ design, mainMesh, isDraggingRef }) {
       position={[design.x, design.y + MODEL_Y, planeZ]}
       rotation={[0, isFront ? 0 : Math.PI, 0]}
       scale={[design.scale, design.scale, 0.35]}
-      renderOrder={2}
+      renderOrder={10}
       onPointerDown={startDrag}
       onPointerEnter={() => { if (!isDraggingRef.current) document.body.style.cursor = 'grab' }}
       onPointerLeave={() => { if (!isDraggingRef.current) document.body.style.cursor = '' }}
@@ -93,7 +93,8 @@ function SingleDecal({ design, mainMesh, isDraggingRef }) {
         alphaTest={0.05}
         depthWrite={false}
         polygonOffset
-        polygonOffsetFactor={-4}
+        polygonOffsetFactor={-10}
+        polygonOffsetUnits={-10}
       />
     </Decal>
   )
@@ -185,10 +186,16 @@ export default function CanvasViewer() {
     >
       <color attach="background" args={['#4a4745']} />
 
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[2, 4, 3]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
-      <directionalLight position={[-2, 1, 2]} intensity={0.35} />
-      <directionalLight position={[0, -1, 1]} intensity={0.12} />
+      {/* Soft ambient — keeps darks dark without washing out colors */}
+      <ambientLight intensity={0.35} />
+      {/* Key light — reduced to not blow out the fabric */}
+      <directionalLight position={[2, 4, 3]} intensity={0.55} castShadow shadow-mapSize={[1024, 1024]} />
+      {/* Left fill */}
+      <directionalLight position={[-2, 1, 2]} intensity={0.25} />
+      {/* Back/counter fill — preserves 3D volume without front glare */}
+      <directionalLight position={[0, 1, -3]} intensity={0.15} />
+      {/* Subtle bottom rim */}
+      <directionalLight position={[0, -1, 1]} intensity={0.08} />
 
       <Suspense fallback={null}>
         <Environment preset="studio" />
