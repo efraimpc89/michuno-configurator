@@ -317,11 +317,16 @@ export default function CanvasViewer() {
     >
       <color attach="background" args={[bgColor]} />
 
-      <ambientLight intensity={0.35} />
-      <directionalLight position={[2, 4, 3]} intensity={0.55} castShadow shadow-mapSize={[1024, 1024]} />
-      <directionalLight position={[-2, 1, 2]} intensity={0.25} />
-      <directionalLight position={[0, 1, -3]} intensity={0.15} />
-      <directionalLight position={[0, -1, 1]} intensity={0.08} />
+      <ambientLight intensity={0.30} />
+      <directionalLight
+        position={[3, 5, 3]}
+        intensity={0.70}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.0003}
+      />
+      <directionalLight position={[-3, 2, 2]} intensity={0.30} />
+      <directionalLight position={[0, 3, -4]} intensity={0.20} />
 
       <Suspense fallback={null}>
         <Environment preset="studio" />
