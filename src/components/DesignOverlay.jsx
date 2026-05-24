@@ -112,7 +112,7 @@ export default function DesignOverlay() {
   const { w: W, h: H } = size
 
   return (
-    <div ref={containerRef} className="absolute inset-0 overflow-hidden">
+    <div ref={containerRef} className="absolute inset-0 overflow-hidden pointer-events-none">
       {designs
         .filter(d => d.side === view2DSide)
         .map(design => {
