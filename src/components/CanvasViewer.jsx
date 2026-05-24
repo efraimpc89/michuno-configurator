@@ -9,7 +9,8 @@ MODELS.forEach(m => useGLTF.preload(m.path))
 
 const MODEL_Y = 0.20
 
-function SingleDecal({ design, isDraggingRef, frontZ }) {
+function SingleDecal({ design, isDraggingRef, frontZ, materialMaps = {} }) {
+  const { normalMap = null, roughnessMap = null, aoMap = null } = materialMaps
   const { updateDesign, setActiveDesignId, activeView } = useConfigurator()
   const [texture, setTexture] = useState(null)
   const { camera, gl } = useThree()
@@ -86,12 +87,17 @@ function SingleDecal({ design, isDraggingRef, frontZ }) {
       onPointerLeave={() => { if (!isDraggingRef.current) document.body.style.cursor = '' }}
     >
       <planeGeometry args={[design.scale, design.scale / (design.aspectRatio || 1)]} />
-      <meshBasicMaterial
+      <meshStandardMaterial
         map={texture}
+        normalMap={normalMap}
+        roughnessMap={roughnessMap}
+        aoMap={aoMap}
+        roughness={0.85}
+        metalness={0.0}
+        envMapIntensity={0.4}
         transparent
         alphaTest={0.05}
         depthWrite={false}
-        toneMapped={false}
         polygonOffset
         polygonOffsetFactor={-4}
         polygonOffsetUnits={-4}
