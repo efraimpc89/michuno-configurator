@@ -24,11 +24,12 @@ export default function Sidebar() {
   const {
     color, setColor,
     size, setSize,
+    modelId, setModelId,
     decalImageUrl, handleFileUpload,
     decalScale, setDecalScale,
     decalX, setDecalX,
     decalY, setDecalY,
-    COLORS, SIZES,
+    COLORS, SIZES, MODELS,
   } = useConfigurator()
 
   const selectedColorName = COLORS.find(c => c.hex === color)?.name ?? ''
@@ -43,6 +44,29 @@ export default function Sidebar() {
       </div>
 
       <div className="flex-1 px-5 py-5 flex flex-col gap-6">
+
+        {/* Model selector */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+            Modelo
+          </h2>
+          <div className="flex flex-col gap-2">
+            {MODELS.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setModelId(m.id)}
+                className={[
+                  'py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-150 text-left',
+                  modelId === m.id
+                    ? 'bg-gray-900 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                ].join(' ')}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+        </section>
 
         {/* Upload section */}
         <section>

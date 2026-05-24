@@ -18,17 +18,25 @@ export const SIZES = [
   { label: 'XG', scale: [1.16, 1.10, 1.16] },
 ]
 
+export const MODELS = [
+  { id: 'playera1', name: 'Playera Clásica', path: '/playera.glb'  },
+  { id: 'playera2', name: 'Oversize',        path: '/playera2.glb' },
+  { id: 'polo',     name: 'Polo',            path: '/polo.glb'     },
+]
+
 const ConfiguratorContext = createContext(null)
 
 export function ConfiguratorProvider({ children }) {
   const [color, setColor]                 = useState('#FFFFFF')
   const [size, setSize]                   = useState('M')
+  const [modelId, setModelId]             = useState('playera1')
   const [decalImageUrl, setDecalImageUrl] = useState(null)
-  const [decalScale, setDecalScale]       = useState(0.15)
+  const [decalScale, setDecalScale]       = useState(0.20)
   const [decalX, setDecalX]               = useState(0)
-  const [decalY, setDecalY]               = useState(0.05)
+  const [decalY, setDecalY]               = useState(0.15)
 
-  const currentScale = (SIZES.find(s => s.label === size) ?? SIZES[1]).scale
+  const currentScale  = (SIZES.find(s  => s.label === size)    ?? SIZES[1]).scale
+  const currentModel  = (MODELS.find(m => m.id    === modelId) ?? MODELS[0])
 
   const handleFileUpload = useCallback((e) => {
     const file = e.target.files?.[0]
@@ -43,6 +51,8 @@ export function ConfiguratorProvider({ children }) {
     <ConfiguratorContext.Provider value={{
       color, setColor,
       size, setSize,
+      modelId, setModelId,
+      currentModel,
       decalImageUrl,
       handleFileUpload,
       decalScale, setDecalScale,
@@ -51,6 +61,7 @@ export function ConfiguratorProvider({ children }) {
       currentScale,
       COLORS,
       SIZES,
+      MODELS,
     }}>
       {children}
     </ConfiguratorContext.Provider>
