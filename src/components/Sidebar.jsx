@@ -59,9 +59,12 @@ export default function Sidebar() {
       </div>
 
       {/* Header */}
-      <div className="px-4 pt-3 pb-3 md:pt-6 md:pb-4 border-b border-gray-100 flex-shrink-0">
-        <h1 className="text-base md:text-lg font-bold text-gray-900 tracking-tight">Michuno</h1>
-        <p className="text-xs text-gray-400 mt-0.5">Configurador 3D</p>
+      <div className="px-4 pt-3 pb-3 md:pt-6 md:pb-4 border-b border-gray-100 flex-shrink-0 flex items-center gap-3">
+        <img src="/favicon.png" alt="Michuno" className="h-9 w-9 object-contain flex-shrink-0" />
+        <div>
+          <h1 className="text-base md:text-lg font-bold text-gray-900 tracking-tight">Michuno</h1>
+          <p className="text-xs text-gray-400 mt-0.5">Configurador 3D</p>
+        </div>
       </div>
 
       <div className="flex-1 px-4 py-4 flex flex-col gap-5 overflow-y-auto">
