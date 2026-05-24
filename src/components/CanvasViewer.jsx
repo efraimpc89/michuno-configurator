@@ -3,6 +3,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls, useGLTF, Center, ContactShadows, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 import { useConfigurator, MODELS } from '../context/ConfiguratorContext'
+import { useMaterialMaps } from '../hooks/useMaterialMaps'
 
 MODELS.forEach(m => useGLTF.preload(m.path))
 
@@ -287,6 +288,7 @@ export default function CanvasViewer() {
   const isDraggingRef = useRef(false)
   const [mainMesh, setMainMesh] = useState(null)
   const [frontZ, setFrontZ]     = useState(0.22)
+  const { normalMap, roughnessMap, aoMap } = useMaterialMaps(mainMesh)
   const onMeshFound = useCallback((mesh) => setMainMesh(mesh), [])
   const onFrontZ    = useCallback((z) => {
     setFrontZ(z)
@@ -318,6 +320,7 @@ export default function CanvasViewer() {
             design={design}
             isDraggingRef={isDraggingRef}
             frontZ={frontZ}
+            materialMaps={{ normalMap, roughnessMap, aoMap }}
           />
         ))}
 
