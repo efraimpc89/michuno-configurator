@@ -1,9 +1,7 @@
 import { useConfigurator } from '../context/ConfiguratorContext'
 
 export default function SceneOverlay({ isPanelOpen = true }) {
-  const { activeView, view2DSide, snapCameraToSide } = useConfigurator()
-
-  if (activeView !== '3d') return null
+  const { view2DSide, setView2DSide } = useConfigurator()
 
   return (
     <div
@@ -20,7 +18,7 @@ export default function SceneOverlay({ isPanelOpen = true }) {
         ].map(({ id, label }) => (
           <button
             key={id}
-            onClick={() => snapCameraToSide(id)}
+            onClick={() => setView2DSide(id)}
             className={[
               'rounded-full px-4 py-1.5 text-xs font-semibold transition-all duration-200',
               view2DSide === id

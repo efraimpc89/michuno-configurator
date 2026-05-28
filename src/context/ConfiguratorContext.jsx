@@ -25,23 +25,25 @@ export const MODELS = [
   { id: 'polo',     name: 'Polo',            path: '/polo.glb'     },
 ]
 
+// Real printable chest area width per size (cm) — used for cm readouts
+export const SIZE_PRINT_CM = { CH: 35, M: 38, G: 41, XG: 44 }
+
 const ConfiguratorContext = createContext(null)
 
 export function ConfiguratorProvider({ children }) {
-  const [color, setColor]           = useState('#181818')
-  const [size, setSize]             = useState('M')
-  const [modelId, setModelId]       = useState('playera1')
-  const [roughness, setRoughness]   = useState(1.00)
-  const [activeView, setActiveView]   = useState('2d')    // '3d' | '2d'
-  const [view2DSide, setView2DSide]   = useState('frente') // which side is visible in 2D overlay
-  const [showHandles, setShowHandles] = useState(false)    // bounding box corners visible
-  const [bgColor, setBgColor]         = useState('#3a3835') // background color
-  const frontZRef    = useRef(0.22)   // written by CanvasViewer, read by DesignOverlay
-  const cameraAnimRef = useRef(null)  // { z: number, framesLeft: number } — triggers smooth camera move
+  const [color,       setColor]       = useState('#181818')
+  const [size,        setSize]        = useState('M')
+  const [modelId,     setModelId]     = useState('playera1')
+  const [roughness,   setRoughness]   = useState(1.00)
+  const [view2DSide,  setView2DSide]  = useState('frente')
+  const [showHandles, setShowHandles] = useState(false)
+  const [bgColor,     setBgColor]     = useState('#3a3835')
 
-  // Multi-design system
-  const [designs, setDesigns]                   = useState([])
-  const [activeDesignId, setActiveDesignId]     = useState(null)
+  // Written by CanvasViewer when model loads, read by DesignOverlay for projection math
+  const frontZRef = useRef(0.22)
+
+  const [designs,        setDesigns]        = useState([])
+  const [activeDesignId, setActiveDesignId] = useState(null)
 
   const currentScale = (SIZES.find(s => s.label === size)    ?? SIZES[1]).scale
   const currentModel = (MODELS.find(m => m.id   === modelId) ?? MODELS[0])
@@ -72,25 +74,18 @@ export function ConfiguratorProvider({ children }) {
     setDesigns(prev => prev.map(d => d.id === id ? { ...d, ...patch } : d))
   }, [])
 
-  // Convenience setters for sliders (always target active design)
   const setActiveX     = useCallback((x)     => updateDesign(activeDesignId, { x }),     [activeDesignId, updateDesign])
   const setActiveY     = useCallback((y)     => updateDesign(activeDesignId, { y }),     [activeDesignId, updateDesign])
   const setActiveScale = useCallback((scale) => updateDesign(activeDesignId, { scale }), [activeDesignId, updateDesign])
-  const setActiveSide  = useCallback((side) => {
+  const setActiveSide  = useCallback((side)  => {
     updateDesign(activeDesignId, { side })
     setView2DSide(side)
-    cameraAnimRef.current = { z: side === 'espalda' ? -2.5 : 2.5, framesLeft: 45 }
   }, [activeDesignId, updateDesign])
-
-  const snapCameraToSide = useCallback((side) => {
-    setView2DSide(side)
-    cameraAnimRef.current = { z: side === 'espalda' ? -2.5 : 2.5, framesLeft: 50 }
-  }, [])
 
   return (
     <ConfiguratorContext.Provider value={{
       color, setColor,
-      size, setSize,
+      size,  setSize,
       modelId, setModelId,
       currentModel, currentScale,
       roughness, setRoughness,
@@ -99,12 +94,10 @@ export function ConfiguratorProvider({ children }) {
       activeDesign,
       addDesign, removeDesign, updateDesign,
       setActiveX, setActiveY, setActiveScale, setActiveSide,
-      activeView, setActiveView,
-      view2DSide,
+      view2DSide, setView2DSide,
       showHandles, setShowHandles,
       bgColor, setBgColor,
-      snapCameraToSide,
-      frontZRef, cameraAnimRef,
+      frontZRef,
       COLORS, SIZES, MODELS,
     }}>
       {children}

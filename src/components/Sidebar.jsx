@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useConfigurator } from '../context/ConfiguratorContext'
+import { useConfigurator, SIZE_PRINT_CM } from '../context/ConfiguratorContext'
 
 function SliderRow({ label, value, min, max, step, onChange }) {
   return (
@@ -10,10 +10,7 @@ function SliderRow({ label, value, min, max, step, onChange }) {
       </div>
       <input
         type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
+        min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="w-full h-1.5 rounded-full cursor-pointer accent-gray-800"
       />
@@ -30,7 +27,7 @@ export default function Sidebar({ isPanelOpen = true }) {
     designs, activeDesignId, setActiveDesignId, activeDesign,
     addDesign, removeDesign,
     setActiveX, setActiveY, setActiveScale, setActiveSide,
-    activeView, showHandles, setShowHandles,
+    showHandles, setShowHandles,
     bgColor, setBgColor,
     COLORS, SIZES, MODELS,
   } = useConfigurator()
@@ -38,8 +35,11 @@ export default function Sidebar({ isPanelOpen = true }) {
   const [collapsed, setCollapsed] = useState(false)
 
   const selectedColorName = COLORS.find(c => c.hex === color)?.name ?? ''
-  const cmW = activeDesign ? Math.round(activeDesign.scale * 50) : 0
-  const cmH = activeDesign ? Math.round(activeDesign.scale / (activeDesign.aspectRatio || 1) * 50) : 0
+
+  // Real-world cm readout for active design
+  const printCM = SIZE_PRINT_CM[size] ?? 38
+  const wCm = activeDesign ? ((activeDesign.scale / 0.90) * printCM).toFixed(1) : null
+  const hCm = wCm ? (parseFloat(wCm) / (activeDesign.aspectRatio || 1)).toFixed(1) : null
 
   const handleFiles = (e) => {
     Array.from(e.target.files || []).forEach(addDesign)
@@ -52,7 +52,6 @@ export default function Sidebar({ isPanelOpen = true }) {
     target.setPointerCapture(e.pointerId)
     const startY = e.clientY
     let moved = false
-
     const handleMove = (evt) => {
       const delta = evt.clientY - startY
       if (Math.abs(delta) > 5) moved = true
@@ -61,11 +60,11 @@ export default function Sidebar({ isPanelOpen = true }) {
     }
     const handleUp = () => {
       target.removeEventListener('pointermove', handleMove)
-      target.removeEventListener('pointerup', handleUp)
+      target.removeEventListener('pointerup',   handleUp)
       if (!moved) setCollapsed(c => !c)
     }
     target.addEventListener('pointermove', handleMove)
-    target.addEventListener('pointerup', handleUp)
+    target.addEventListener('pointerup',   handleUp)
   }
 
   return (
@@ -80,12 +79,10 @@ export default function Sidebar({ isPanelOpen = true }) {
         'transition-[transform,max-height] duration-300 ease-in-out',
         collapsed ? 'max-h-[56px]' : 'max-h-[72vh]',
         'md:max-h-full',
-        // Desktop/tablet slide: translate off-screen when panel is closed
         isPanelOpen ? 'md:translate-x-0' : 'md:translate-x-full',
       ].join(' ')}
     >
-
-      {/* Drag handle — mobile only, functional */}
+      {/* Mobile drag handle */}
       <div
         className="relative z-10 flex justify-center pt-2.5 pb-1 md:hidden flex-shrink-0 cursor-grab active:cursor-grabbing"
         onPointerDown={onHandlePointerDown}
@@ -95,7 +92,7 @@ export default function Sidebar({ isPanelOpen = true }) {
 
       {/* Header */}
       <div className="px-4 pt-3 pb-3 md:pt-6 md:pb-4 border-b border-gray-100 flex-shrink-0 flex items-center gap-3">
-        <img src="/favicon.png" alt="Michuno" className="h-9 w-9 object-contain flex-shrink-0" />
+        <img src="/logo1.png" alt="Michuno" className="h-9 w-9 object-contain flex-shrink-0" />
         <div>
           <h1 className="text-base md:text-lg font-bold text-gray-900 tracking-tight">Michuno&#174;</h1>
           <p className="text-xs text-gray-400 mt-0.5">Mock-up Playeras</p>
@@ -104,7 +101,7 @@ export default function Sidebar({ isPanelOpen = true }) {
 
       <div className="flex-1 px-4 py-4 flex flex-col gap-5 overflow-y-auto">
 
-        {/* ── Model selector ─────────────────────────────────────── */}
+        {/* ── Modelo ──────────────────────────────────────────── */}
         <section>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Modelo</h2>
           <div className="flex gap-1.5">
@@ -114,7 +111,9 @@ export default function Sidebar({ isPanelOpen = true }) {
                 onClick={() => setModelId(m.id)}
                 className={[
                   'flex-1 py-2 rounded-xl text-xs font-semibold transition-all duration-150',
-                  modelId === m.id ? 'bg-gray-900 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                  modelId === m.id
+                    ? 'bg-gray-900 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
                 ].join(' ')}
               >
                 {m.name}
@@ -123,10 +122,9 @@ export default function Sidebar({ isPanelOpen = true }) {
           </div>
         </section>
 
-        {/* ── Diseños / Logos ────────────────────────────────────── */}
+        {/* ── Diseños / Logos ─────────────────────────────────── */}
         <section>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Diseños / Logos</h2>
-
           <label className="flex items-center gap-2 cursor-pointer bg-gray-50 hover:bg-gray-100 border border-dashed border-gray-300 hover:border-gray-400 rounded-xl px-4 py-2.5 transition-colors text-sm text-gray-600 mb-2">
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -149,11 +147,7 @@ export default function Sidebar({ isPanelOpen = true }) {
                       : 'border-transparent bg-gray-50 hover:bg-gray-100',
                   ].join(' ')}
                 >
-                  <img
-                    src={d.url}
-                    alt=""
-                    className="h-9 w-9 object-contain rounded-lg bg-white border border-gray-200 flex-shrink-0"
-                  />
+                  <img src={d.url} alt="" className="h-9 w-9 object-contain rounded-lg bg-white border border-gray-200 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <span className={[
                       'inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full',
@@ -174,16 +168,18 @@ export default function Sidebar({ isPanelOpen = true }) {
           )}
         </section>
 
-        {/* ── Ajustar diseño activo ──────────────────────────────── */}
+        {/* ── Ajustar diseño activo ────────────────────────────── */}
         {activeDesign && (
           <section>
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Ajustar diseño</h2>
-              <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                ~{cmW}×{cmH} cm
-              </span>
+              {wCm && (
+                <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full tabular-nums">
+                  {wCm} × {hCm} cm
+                </span>
+              )}
             </div>
-            <p className="text-xs text-gray-400 mb-2">Arrastra el logo en 3D para moverlo</p>
+            <p className="text-xs text-gray-400 mb-2">Arrastra el logo en el visor para moverlo</p>
 
             {/* Side toggle */}
             <div className="mb-3">
@@ -206,39 +202,23 @@ export default function Sidebar({ isPanelOpen = true }) {
               </div>
             </div>
 
-            <SliderRow label="Tamaño" value={activeDesign.scale} min={0.05} max={0.80} step={0.01} onChange={setActiveScale} />
-            {activeView === '3d' ? (
-              <>
-                <SliderRow label="Pos. X  ←  →" value={activeDesign.x} min={-0.45} max={0.45}  step={0.005} onChange={setActiveX} />
-                <SliderRow label="Pos. Y  ↓  ↑" value={activeDesign.y} min={-1.0} max={1.0}  step={0.005} onChange={setActiveY} />
-                <label className="flex items-center gap-2 cursor-pointer select-none mt-1">
-                  <input
-                    type="checkbox"
-                    checked={showHandles}
-                    onChange={(e) => setShowHandles(e.target.checked)}
-                    className="w-3.5 h-3.5 accent-gray-800 cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-600">Mostrar esquinas</span>
-                </label>
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-gray-400 mt-1 mb-2">Arrastra el logo en el visor para moverlo</p>
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={showHandles}
-                    onChange={(e) => setShowHandles(e.target.checked)}
-                    className="w-3.5 h-3.5 accent-gray-800 cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-600">Mostrar esquinas y bordes</span>
-                </label>
-              </>
-            )}
+            <SliderRow label="Tamaño"     value={activeDesign.scale} min={0.05} max={0.80} step={0.01} onChange={setActiveScale} />
+            <SliderRow label="Pos. X ← →" value={activeDesign.x}     min={-0.45} max={0.45} step={0.005} onChange={setActiveX} />
+            <SliderRow label="Pos. Y ↓ ↑" value={activeDesign.y}     min={-0.70} max={0.70} step={0.005} onChange={setActiveY} />
+
+            <label className="flex items-center gap-2 cursor-pointer select-none mt-1">
+              <input
+                type="checkbox"
+                checked={showHandles}
+                onChange={(e) => setShowHandles(e.target.checked)}
+                className="w-3.5 h-3.5 accent-gray-800 cursor-pointer"
+              />
+              <span className="text-xs text-gray-600">Mostrar esquinas y medidas</span>
+            </label>
           </section>
         )}
 
-        {/* ── Color ─────────────────────────────────────────────── */}
+        {/* ── Color ───────────────────────────────────────────── */}
         <section>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Color</h2>
           <div className="grid grid-cols-5 gap-2">
@@ -271,7 +251,7 @@ export default function Sidebar({ isPanelOpen = true }) {
           </label>
         </section>
 
-        {/* ── Talla ─────────────────────────────────────────────── */}
+        {/* ── Talla ───────────────────────────────────────────── */}
         <section>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Talla</h2>
           <div className="grid grid-cols-4 gap-1.5">
@@ -281,29 +261,34 @@ export default function Sidebar({ isPanelOpen = true }) {
                 onClick={() => setSize(s.label)}
                 className={[
                   'py-2 rounded-xl text-sm font-semibold transition-all duration-150',
-                  size === s.label ? 'bg-gray-900 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                  size === s.label
+                    ? 'bg-gray-900 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
                 ].join(' ')}
               >
                 {s.label}
               </button>
             ))}
           </div>
+          {wCm && (
+            <p className="text-xs text-gray-400 mt-1.5">
+              Área imprimible talla {size}: ~{SIZE_PRINT_CM[size]} cm ancho
+            </p>
+          )}
         </section>
 
-        {/* ── Material ──────────────────────────────────────────── */}
+        {/* ── Material ────────────────────────────────────────── */}
         <section>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Material</h2>
           <SliderRow
             label="Rugosidad de la Tela"
             value={roughness}
-            min={0.5}
-            max={1.0}
-            step={0.01}
+            min={0.5} max={1.0} step={0.01}
             onChange={setRoughness}
           />
         </section>
 
-        {/* ── Fondo de Estudio ──────────────────────────────────── */}
+        {/* ── Fondo de Estudio ────────────────────────────────── */}
         <section>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Fondo de Estudio</h2>
           <div className="grid grid-cols-5 gap-2 mb-3">
@@ -336,7 +321,6 @@ export default function Sidebar({ isPanelOpen = true }) {
 
       </div>
 
-      {/* Footer — hidden on mobile to save space */}
       <div className="hidden md:block px-5 py-4 border-t border-gray-100 flex-shrink-0">
         <p className="text-xs text-gray-300 text-center">Michuno.com.mx · 2026</p>
       </div>

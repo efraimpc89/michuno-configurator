@@ -1,9 +1,9 @@
 import { useRef, useState, useEffect } from 'react'
-import { useConfigurator } from '../context/ConfiguratorContext'
+import { useConfigurator, SIZE_PRINT_CM } from '../context/ConfiguratorContext'
 
 const MODEL_Y  = 0.20
 const CAM_Z    = 2.5
-const TAN_HALF = Math.tan((45 * Math.PI / 180) / 2)   // tan(22.5°) ≈ 0.4142
+const TAN_HALF = Math.tan((45 * Math.PI / 180) / 2)  // tan(22.5°)
 
 function pxPerUnit(frontZ, H) {
   return H / (2 * (CAM_Z - frontZ) * TAN_HALF)
@@ -27,21 +27,22 @@ function pixelToWorld(px, py, W, H, frontZ, flip = false) {
 
 export default function DesignOverlay() {
   const {
-    activeView, view2DSide,
+    view2DSide,
     designs, activeDesignId, setActiveDesignId,
     updateDesign, frontZRef, showHandles,
+    size,
   } = useConfigurator()
 
   const containerRef = useRef()
-  const [size, setSize] = useState({ w: 0, h: 0 })
+  const [size2D, setSize2D] = useState({ w: 0, h: 0 })
 
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
-    setSize({ w: el.clientWidth, h: el.clientHeight })
+    setSize2D({ w: el.clientWidth, h: el.clientHeight })
     const ro = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect
-      setSize({ w: width, h: height })
+      setSize2D({ w: width, h: height })
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -54,9 +55,8 @@ export default function DesignOverlay() {
 
     const flip = view2DSide === 'espalda'
     const rect = containerRef.current.getBoundingClientRect()
-    const W    = rect.width
-    const H    = rect.height
-    const fz   = frontZRef.current
+    const W = rect.width, H = rect.height
+    const fz = frontZRef.current
 
     const onMove = (ev) => {
       const px = ev.clientX - rect.left
@@ -81,11 +81,10 @@ export default function DesignOverlay() {
 
     const flip = view2DSide === 'espalda'
     const rect = containerRef.current.getBoundingClientRect()
-    const W    = rect.width
-    const H    = rect.height
-    const fz   = frontZRef.current
-
+    const W = rect.width, H = rect.height
+    const fz = frontZRef.current
     const ar = design.aspectRatio || 1
+
     const onMove = (ev) => {
       const px = ev.clientX - rect.left
       const py = ev.clientY - rect.top
@@ -103,21 +102,16 @@ export default function DesignOverlay() {
     window.addEventListener('pointerup',   onUp)
   }
 
-  // Always render the container so ResizeObserver can measure it
-  // but only show content in 2D mode
-  if (activeView !== '2d') {
-    return <div ref={containerRef} className="absolute inset-0 pointer-events-none" />
-  }
-
-  const { w: W, h: H } = size
+  const { w: W, h: H } = size2D
+  const printCM = SIZE_PRINT_CM[size] ?? 38
 
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden pointer-events-none">
       {designs
         .filter(d => d.side === view2DSide)
         .map(design => {
-          const fz     = frontZRef.current
-          const flip   = view2DSide === 'espalda'
+          const fz      = frontZRef.current
+          const flip    = view2DSide === 'espalda'
           const { x: cx, y: cy } = worldToPixel(design.x, design.y + MODEL_Y, W, H, fz, flip)
           const ar      = design.aspectRatio || 1
           const pxW     = design.scale * pxPerUnit(fz, H)
@@ -126,11 +120,12 @@ export default function DesignOverlay() {
           const halfW   = pxW / 2
           const halfH   = pxH / 2
 
+          // Real-world cm readout — updates per size via SIZE_PRINT_CM lookup
+          const wCm = ((design.scale / 0.90) * printCM).toFixed(1)
+          const hCm = (parseFloat(wCm) / ar).toFixed(1)
+
           return (
-            <div
-              key={design.id}
-              style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
-            >
+            <div key={design.id} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
               {/* Design image */}
               <img
                 src={design.url}
@@ -150,10 +145,9 @@ export default function DesignOverlay() {
                 onPointerDown={(e) => startDrag(e, design)}
               />
 
-              {/* Bounding box + corner handles — only when showHandles is enabled */}
+              {/* Bounding box + handles + cm label — only when active & showHandles */}
               {isActive && showHandles && (
                 <>
-                  {/* Dashed border */}
                   <div style={{
                     position:      'absolute',
                     left:          `${cx - halfW}px`,
@@ -165,7 +159,6 @@ export default function DesignOverlay() {
                     pointerEvents: 'none',
                   }} />
 
-                  {/* 4 corner handles */}
                   {[[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sy], i) => (
                     <div
                       key={i}
@@ -185,6 +178,28 @@ export default function DesignOverlay() {
                       onPointerDown={(e) => startResize(e, design)}
                     />
                   ))}
+
+                  {/* cm readout label */}
+                  <div style={{
+                    position:      'absolute',
+                    left:          `${cx - halfW}px`,
+                    top:           `${cy + halfH + 10}px`,
+                    pointerEvents: 'none',
+                    whiteSpace:    'nowrap',
+                  }}>
+                    <span style={{
+                      display:       'inline-block',
+                      background:    'rgba(0,0,0,0.70)',
+                      color:         '#fff',
+                      fontSize:      11,
+                      padding:       '2px 7px',
+                      borderRadius:  4,
+                      fontFamily:    'monospace',
+                      letterSpacing: '0.02em',
+                    }}>
+                      {wCm} × {hCm} cm
+                    </span>
+                  </div>
                 </>
               )}
             </div>
