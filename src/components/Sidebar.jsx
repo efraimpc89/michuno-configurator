@@ -21,7 +21,7 @@ function SliderRow({ label, value, min, max, step, onChange }) {
   )
 }
 
-export default function Sidebar() {
+export default function Sidebar({ isPanelOpen = true }) {
   const {
     color, setColor,
     size,  setSize,
@@ -77,9 +77,11 @@ export default function Sidebar() {
         'bg-white shadow-2xl z-10 flex flex-col',
         'rounded-t-2xl md:rounded-none',
         'overflow-hidden md:overflow-y-auto',
-        'transition-[max-height] duration-300 ease-in-out',
+        'transition-[transform,max-height] duration-300 ease-in-out',
         collapsed ? 'max-h-[56px]' : 'max-h-[72vh]',
         'md:max-h-full',
+        // Desktop/tablet slide: translate off-screen when panel is closed
+        isPanelOpen ? 'md:translate-x-0' : 'md:translate-x-full',
       ].join(' ')}
     >
 
