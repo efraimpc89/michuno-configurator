@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useConfigurator } from '../context/ConfiguratorContext'
 
 function SliderRow({ label, value, min, max, step, onChange }) {
@@ -36,7 +36,6 @@ export default function Sidebar() {
   } = useConfigurator()
 
   const [collapsed, setCollapsed] = useState(false)
-  const dragRef = useRef({ startY: 0, moved: false })
 
   const selectedColorName = COLORS.find(c => c.hex === color)?.name ?? ''
   const cmW = activeDesign ? Math.round(activeDesign.scale * 50) : 0
@@ -48,20 +47,25 @@ export default function Sidebar() {
   }
 
   const onHandlePointerDown = (e) => {
-    dragRef.current = { startY: e.clientY, moved: false }
+    e.stopPropagation()
+    const target = e.currentTarget
+    target.setPointerCapture(e.pointerId)
+    const startY = e.clientY
+    let moved = false
+
     const handleMove = (evt) => {
-      const delta = evt.clientY - dragRef.current.startY
-      if (Math.abs(delta) > 5) dragRef.current.moved = true
+      const delta = evt.clientY - startY
+      if (Math.abs(delta) > 5) moved = true
       if (delta > 30)  setCollapsed(true)
       if (delta < -30) setCollapsed(false)
     }
-    const handleUp = (evt) => {
-      document.removeEventListener('pointermove', handleMove)
-      document.removeEventListener('pointerup',   handleUp)
-      if (!dragRef.current.moved) setCollapsed(c => !c)
+    const handleUp = () => {
+      target.removeEventListener('pointermove', handleMove)
+      target.removeEventListener('pointerup', handleUp)
+      if (!moved) setCollapsed(c => !c)
     }
-    document.addEventListener('pointermove', handleMove)
-    document.addEventListener('pointerup',   handleUp)
+    target.addEventListener('pointermove', handleMove)
+    target.addEventListener('pointerup', handleUp)
   }
 
   return (
@@ -81,7 +85,7 @@ export default function Sidebar() {
 
       {/* Drag handle — mobile only, functional */}
       <div
-        className="flex justify-center pt-2.5 pb-1 md:hidden flex-shrink-0 cursor-grab active:cursor-grabbing"
+        className="relative z-10 flex justify-center pt-2.5 pb-1 md:hidden flex-shrink-0 cursor-grab active:cursor-grabbing"
         onPointerDown={onHandlePointerDown}
       >
         <div className="w-10 h-1 rounded-full bg-gray-300" />
