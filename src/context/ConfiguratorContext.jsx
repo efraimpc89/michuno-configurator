@@ -12,11 +12,14 @@ export const COLORS = [
   { name: 'Beige Arena',    hex: '#CEBDA5' },
 ]
 
+// Real Euro Cotton proportions (width × height in cm):
+//   CH 45.7×70.5 | M 50.8×73.0 | G 55.9×75.6 | XG 61.0×78.1
+// Scale factors derived from M baseline (width/50.8, height/73.0).
 export const SIZES = [
-  { label: 'CH', scale: [0.92, 0.94, 0.92] },
-  { label: 'M',  scale: [1.0,  1.0,  1.0]  },
-  { label: 'G',  scale: [1.08, 1.05, 1.08] },
-  { label: 'XG', scale: [1.16, 1.10, 1.16] },
+  { label: 'CH', scale: [0.90, 0.97, 0.90] },
+  { label: 'M',  scale: [1.00, 1.00, 1.00] },
+  { label: 'G',  scale: [1.10, 1.04, 1.10] },
+  { label: 'XG', scale: [1.20, 1.07, 1.20] },
 ]
 
 export const MODELS = [
@@ -25,8 +28,12 @@ export const MODELS = [
   { id: 'polo',     name: 'Polo',            path: '/polo.glb'     },
 ]
 
-// Real printable chest area width per size (cm) — used for cm readouts
-export const SIZE_PRINT_CM = { CH: 35, M: 38, G: 41, XG: 44 }
+// Full seam-to-seam shirt width per size (cm) — drives cm readouts so that
+// a logo at scale ≈ 0.45 on an M shirt correctly reads ~25 cm (half of 50.8).
+export const SIZE_SHIRT_CM  = { CH: 45.7, M: 50.8, G: 55.9, XG: 61.0 }
+
+// Printable safe area per size (cm) — used only for the sidebar hint text.
+export const SIZE_PRINT_CM  = { CH: 34,   M: 38,   G: 42,   XG: 46   }
 
 const ConfiguratorContext = createContext(null)
 
@@ -41,6 +48,9 @@ export function ConfiguratorProvider({ children }) {
 
   // Written by CanvasViewer when model loads, read by DesignOverlay for projection math
   const frontZRef = useRef(0.22)
+
+  // Set by CanvasViewer's DownloadCapture (inside R3F Canvas); called by Sidebar button
+  const downloadFnRef = useRef(null)
 
   const [designs,        setDesigns]        = useState([])
   const [activeDesignId, setActiveDesignId] = useState(null)
@@ -98,6 +108,7 @@ export function ConfiguratorProvider({ children }) {
       showHandles, setShowHandles,
       bgColor, setBgColor,
       frontZRef,
+      downloadFnRef,
       COLORS, SIZES, MODELS,
     }}>
       {children}

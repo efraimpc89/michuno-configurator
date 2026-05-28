@@ -9,6 +9,9 @@
     "directory": "./dist",
     "not_found_handling": "single-page-application"
   },
+  "routes": [
+    { "pattern": "mockup.michuno.com.mx/*", "zone_name": "michuno.com.mx" }
+  ],
   "compatibility_flags": [
     "nodejs_compat"
   ]

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useConfigurator, SIZE_PRINT_CM } from '../context/ConfiguratorContext'
+import { useConfigurator, SIZE_PRINT_CM, SIZE_SHIRT_CM } from '../context/ConfiguratorContext'
 
 function SliderRow({ label, value, min, max, step, onChange }) {
   return (
@@ -29,6 +29,7 @@ export default function Sidebar({ isPanelOpen = true }) {
     setActiveX, setActiveY, setActiveScale, setActiveSide,
     showHandles, setShowHandles,
     bgColor, setBgColor,
+    downloadFnRef,
     COLORS, SIZES, MODELS,
   } = useConfigurator()
 
@@ -36,9 +37,9 @@ export default function Sidebar({ isPanelOpen = true }) {
 
   const selectedColorName = COLORS.find(c => c.hex === color)?.name ?? ''
 
-  // Real-world cm readout for active design
-  const printCM = SIZE_PRINT_CM[size] ?? 38
-  const wCm = activeDesign ? ((activeDesign.scale / 0.90) * printCM).toFixed(1) : null
+  // Real-world cm readout for active design (matches DesignOverlay formula)
+  const shirtCM = SIZE_SHIRT_CM[size] ?? 50.8
+  const wCm = activeDesign ? ((activeDesign.scale / 0.90) * shirtCM).toFixed(1) : null
   const hCm = wCm ? (parseFloat(wCm) / (activeDesign.aspectRatio || 1)).toFixed(1) : null
 
   const handleFiles = (e) => {
@@ -317,6 +318,20 @@ export default function Sidebar({ isPanelOpen = true }) {
             />
             <span className="text-xs text-gray-400 tabular-nums font-mono">{bgColor}</span>
           </label>
+        </section>
+
+        {/* ── Descargar Imagen ────────────────────────────── */}
+        <section>
+          <button
+            onClick={() => downloadFnRef.current?.()}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-900 hover:bg-gray-700 active:scale-95 text-white text-sm font-semibold rounded-2xl transition-all duration-150 shadow-md"
+          >
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Descargar Imagen
+          </button>
         </section>
 
       </div>

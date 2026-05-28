@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { useConfigurator, SIZE_PRINT_CM } from '../context/ConfiguratorContext'
+import { useConfigurator, SIZE_SHIRT_CM } from '../context/ConfiguratorContext'
 
 const MODEL_Y  = 0.20
 const CAM_Z    = 2.5
@@ -103,7 +103,7 @@ export default function DesignOverlay() {
   }
 
   const { w: W, h: H } = size2D
-  const printCM = SIZE_PRINT_CM[size] ?? 38
+  const shirtCM = SIZE_SHIRT_CM[size] ?? 50.8
 
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -120,8 +120,9 @@ export default function DesignOverlay() {
           const halfW   = pxW / 2
           const halfH   = pxH / 2
 
-          // Real-world cm readout — updates per size via SIZE_PRINT_CM lookup
-          const wCm = ((design.scale / 0.90) * printCM).toFixed(1)
+          // Real-world cm readout: scale/0.90 × shirt width gives exact physical size.
+          // At scale ≈ 0.45 on an M shirt (50.8 cm), reads ~25 cm — half the chest.
+          const wCm = ((design.scale / 0.90) * shirtCM).toFixed(1)
           const hCm = (parseFloat(wCm) / ar).toFixed(1)
 
           return (

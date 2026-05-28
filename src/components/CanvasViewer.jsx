@@ -4,6 +4,9 @@ import { useGLTF, Center, ContactShadows, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 import { useConfigurator, MODELS } from '../context/ConfiguratorContext'
 
+const CAM_Z    = 2.5
+const TAN_HALF = Math.tan((45 * Math.PI / 180) / 2)
+
 MODELS.forEach(m => useGLTF.preload(m.path))
 
 const MODEL_Y = 0.20
@@ -104,6 +107,70 @@ function ShirtModel({ onMeshFound, onFrontZ }) {
   )
 }
 
+// Registers the download fn onto context's downloadFnRef.
+// Must live inside <Canvas> to access useThree().
+function DownloadCapture() {
+  const { gl } = useThree()
+  const { downloadFnRef, designs, view2DSide, frontZRef } = useConfigurator()
+
+  useEffect(() => {
+    downloadFnRef.current = async () => {
+      const glCanvas = gl.domElement
+      const W = glCanvas.width
+      const H = glCanvas.height
+
+      const out = document.createElement('canvas')
+      out.width  = W
+      out.height = H
+      const ctx = out.getContext('2d')
+
+      // 1. Paint the WebGL scene (bg color + lit shirt)
+      ctx.drawImage(glCanvas, 0, 0)
+
+      // 2. Composite visible logo images using the same projection math as DesignOverlay
+      const fz  = frontZRef.current
+      const ppu = H / (2 * (CAM_Z - fz) * TAN_HALF)  // device px per world unit
+      const flip = view2DSide === 'espalda'
+
+      await Promise.all(
+        designs.filter(d => d.side === view2DSide).map(design =>
+          new Promise(resolve => {
+            const img = new Image()
+            img.onload = () => {
+              const ar = design.aspectRatio || 1
+              const cx = flip ? W / 2 - design.x * ppu : W / 2 + design.x * ppu
+              const cy = H / 2 - design.y * ppu
+              const pw = design.scale * ppu
+              const ph = pw / ar
+              ctx.drawImage(img, cx - pw / 2, cy - ph / 2, pw, ph)
+              resolve()
+            }
+            img.onerror = resolve
+            img.src = design.url
+          })
+        )
+      )
+
+      // 3. Trigger browser download as PNG
+      await new Promise(resolve => {
+        out.toBlob(blob => {
+          const url = URL.createObjectURL(blob)
+          const a   = document.createElement('a')
+          a.href     = url
+          a.download = 'michuno-mockup.png'
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          setTimeout(() => URL.revokeObjectURL(url), 1000)
+          resolve()
+        }, 'image/png')
+      })
+    }
+  }, [gl, designs, view2DSide, frontZRef, downloadFnRef])
+
+  return null
+}
+
 export default function CanvasViewer() {
   const { bgColor, frontZRef } = useConfigurator()
   const shadowOpacity = hexLuminance(bgColor) >= 0.4 ? 0.22 : 0.45
@@ -120,6 +187,7 @@ export default function CanvasViewer() {
     >
       <color attach="background" args={[bgColor]} />
       <Lights />
+      <DownloadCapture />
       <Suspense fallback={null}>
         <Environment preset="studio" />
         <CameraController />
